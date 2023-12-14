@@ -1,3 +1,4 @@
+const fs = require("fs");
 const mongoose = require("mongoose");
 const { validationResult } = require("express-validator");
 
@@ -43,7 +44,7 @@ const getPlaceById = async (req, res, next) => {
     return next(error);
   }
 
-  res.json({ places: place.toObject({ getters: true }) });
+  res.json({ place: place.toObject({ getters: true }) });
 };
 
 const getPlacesByUserId = async (req, res, next) => {
@@ -62,12 +63,12 @@ const getPlacesByUserId = async (req, res, next) => {
     return next(error);
   }
 
+  console.log("userWithPlaces:", userWithPlaces);
   if (!userWithPlaces || userWithPlaces.places.length === 0) {
     return next(
       new HttpError("Could not find place for the provided user id.", 404)
     );
   }
-
   res.json({
     places: userWithPlaces.places.map((p) => p.toObject({ getters: true })),
   });
@@ -95,7 +96,7 @@ const createPlace = async (req, res, next) => {
     description,
     address,
     location: coordinates,
-    image: "http://google.com",
+    image: req.file.path,
     creator,
   });
 
@@ -140,7 +141,6 @@ const createPlace = async (req, res, next) => {
 const updatePlace = async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    console.log(errors);
     return next(
       new HttpError("Invalid Input passed, please check your data", 422)
     );
@@ -188,18 +188,20 @@ const deletePlace = async (req, res, next) => {
   let place;
   try {
     place = await Place.findById(placeId).populate("creator"); // refer to doc in another collection
-  } catch (error) {
-    const err = new HttpError(
+  } catch (err) {
+    const error = new HttpError(
       "Something went wrong, could not delete place.",
       500
     );
-    return next(err);
+    return next(error);
   }
 
   if (!place) {
     const error = new HttpError("Could not find place for this id", 404);
     return next(error);
   }
+
+  const imagePath = place.image;
 
   try {
     const sess = await mongoose.startSession();
@@ -208,13 +210,17 @@ const deletePlace = async (req, res, next) => {
     place.creator.places.pull(place);
     await place.creator.save({ session: sess });
     await sess.commitTransaction();
-  } catch (error) {
-    const err = new HttpError(
+  } catch (err) {
+    const error = new HttpError(
       "Something went wrong, could not delete place.",
       500
     );
-    return next(err);
+    return next(error);
   }
+
+  fs.unlink(imagePath, (err) => {
+    console.log(err);
+  }); // for deleting the image from the uploads folder
 
   res.status(200).json({ message: "Deleted place." });
 };

@@ -40,7 +40,7 @@ const signup = async (req, res, next) => {
   const createdUser = new User({
     name,
     email,
-    image: "http://google.com",
+    image: req.file.path,
     password,
     places: [], // initialized as empty array
   });
@@ -74,7 +74,10 @@ const login = async (req, res, next) => {
     return next(error);
   }
 
-  res.json({ message: "Logged In." });
+  res.json({
+    message: "Logged In.",
+    user: existingUser.toObject({ getters: true }),
+  });
 };
 
 exports.getUsers = getUsers;
