@@ -15,7 +15,7 @@ module.exports = (req, res, next) => {
     req.userData = { userId: decodedToken.userId }; // reqData is object added from us, decodedToken came from token returned when we added token in jwt.sign
     next();
   } catch (err) {
-    const error = new HttpError("Authentication failed", 401);
+    const error = new HttpError("Authentication failed", 403);
     return next(error);
   }
 };
